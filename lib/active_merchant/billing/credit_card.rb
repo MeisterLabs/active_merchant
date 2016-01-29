@@ -322,7 +322,7 @@ module ActiveMerchant #:nodoc:
         errors = []
 
         if self.class.requires_name?
-          errors << [:first_name, "cannot be empty"] if first_name.blank?
+          # errors << [:first_name, "cannot be empty"] if first_name.blank?
           errors << [:last_name,  "cannot be empty"] if last_name.blank?
         end
 
