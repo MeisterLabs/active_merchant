@@ -43,7 +43,7 @@ module ActiveMerchant #:nodoc:
         #       render :nothing
         #     end
         #   end
-        class Notification < OffsitePayments::Notification
+        class Notification
           include ActiveUtils::PostsData
 
           def initialize(post, options = {})
