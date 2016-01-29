@@ -8,15 +8,20 @@ module ActiveMerchant #:nodoc:
       include PaypalCommonAPI
       include PaypalExpressCommon
 
-      LIVE_REDIRECT_URL = 'https://www.paypal.com/cgi-bin/webscr?cmd=_customer-billing-agreement&token='
-      TEST_REDIRECT_URL = 'https://www.sandbox.paypal.com/cgi-bin/webscr?cmd=_customer-billing-agreement&token='
+      self.test_redirect_url = 'https://www.sandbox.paypal.com/cgi-bin/webscr'
+      self.supported_countries = ['US']
+      self.homepage_url = 'https://www.paypal.com/cgi-bin/webscr?cmd=xpt/merchant/ExpressCheckoutIntro-outside'
+      self.display_name = 'PayPal Express Checkout'
 
       def redirect_url
-        test? ? TEST_REDIRECT_URL : LIVE_REDIRECT_URL
+        test? ? test_redirect_url : live_redirect_url
       end
 
       def redirect_url_for(token)
-        "#{redirect_url}#{token}"
+        cmd  = '_customer-billing-agreement'
+        url  = "#{redirect_url}?cmd=#{cmd}&token=#{token}"
+
+        url
       end
 
       def setup_agreement(options = {})
