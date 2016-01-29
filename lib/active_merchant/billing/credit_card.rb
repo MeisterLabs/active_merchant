@@ -35,8 +35,7 @@ module ActiveMerchant #:nodoc:
     #
     # == Example Usage
     #   cc = CreditCard.new(
-    #     :first_name         => 'Steve',
-    #     :last_name          => 'Smith',
+    #     :name               => 'Steve Jobs',
     #     :month              => '9',
     #     :year               => '2017',
     #     :brand              => 'visa',
@@ -111,15 +110,10 @@ module ActiveMerchant #:nodoc:
         @brand = (value.respond_to?(:downcase) ? value.downcase : value)
       end
 
-      # Returns or sets the first name of the card holder.
+      # Returns or sets the name of the card holder.
       #
       # @return [String]
-      attr_accessor :first_name
-
-      # Returns or sets the last name of the card holder.
-      #
-      # @return [String]
-      attr_accessor :last_name
+      attr_accessor :name
 
       # Required for Switch / Solo cards
       attr_reader :start_month, :start_year
@@ -221,32 +215,9 @@ module ActiveMerchant #:nodoc:
         expiry_date.expired?
       end
 
-      # Returns whether either the +first_name+ or the +last_name+ attributes has been set.
+      # Returns whether the +name+ attribute has been set.
       def name?
-        first_name? || last_name?
-      end
-
-      # Returns whether the +first_name+ attribute has been set.
-      def first_name?
-        first_name.present?
-      end
-
-      # Returns whether the +last_name+ attribute has been set.
-      def last_name?
-        last_name.present?
-      end
-
-      # Returns the full name of the card holder.
-      #
-      # @return [String] the full name of the card holder
-      def name
-        [first_name, last_name].compact.join(' ')
-      end
-
-      def name=(full_name)
-        names = full_name.split
-        self.last_name  = names.pop
-        self.first_name = names.join(" ")
+        name.present?
       end
 
       %w(month year start_month start_year).each do |m|
@@ -322,8 +293,7 @@ module ActiveMerchant #:nodoc:
         errors = []
 
         if self.class.requires_name?
-          # errors << [:first_name, "cannot be empty"] if first_name.blank?
-          errors << [:last_name,  "cannot be empty"] if last_name.blank?
+          errors << [:name,  "cannot be empty"] if name.blank?
         end
 
         if(empty?(month) || empty?(year))

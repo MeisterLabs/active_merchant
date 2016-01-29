@@ -145,7 +145,7 @@ module ActiveMerchant #:nodoc:
 
         def valid_test_mode_card_number?(number) #:nodoc:
           ActiveMerchant::Billing::Base.test? &&
-            %w[1 2 3 success failure error].include?(number.to_s)
+            %w[1 2 3 success failure error 4200000000000000].include?(number.to_s)
         end
 
         ODD_LUHN_VALUE = {

@@ -9,8 +9,8 @@ module ActiveMerchant #:nodoc:
       # The Namespaces are not really needed, because it just tells the System, that there's actually no namespace used.
       # It's just specified here for completeness.
       ENVELOPE_NAMESPACES = {
-        'xmlns:xsi' => 'http://www.w3.org/1999/XMLSchema-instance',
-        'xsi:noNamespaceSchemaLocation' => 'wirecard.xsd'
+          'xmlns:xsi' => 'http://www.w3.org/1999/XMLSchema-instance',
+          'xsi:noNamespaceSchemaLocation' => 'wirecard.xsd'
       }
 
       PERMITTED_TRANSACTIONS = %w[ PREAUTHORIZATION CAPTURE PURCHASE ]
@@ -132,9 +132,9 @@ module ActiveMerchant #:nodoc:
 
       def scrub(transcript)
         transcript.
-          gsub(%r((Authorization: Basic )\w+), '\1[FILTERED]').
-          gsub(%r((<CreditCardNumber>)\d+(</CreditCardNumber>)), '\1[FILTERED]\2').
-          gsub(%r((<CVC2>)[^<]+(</CVC2>)), '\1[FILTERED]\2')
+            gsub(%r((Authorization: Basic )\w+), '\1[FILTERED]').
+            gsub(%r((<CreditCardNumber>)\d+(</CreditCardNumber>)), '\1[FILTERED]\2').
+            gsub(%r((<CVC2>)[^<]+(</CVC2>)), '\1[FILTERED]\2')
       end
 
       private
@@ -179,10 +179,10 @@ module ActiveMerchant #:nodoc:
         authorization = response[:GuWID]
 
         Response.new(success, message, response,
-          :test => test?,
-          :authorization => authorization,
-          :avs_result => { :code => avs_code(response, options) },
-          :cvv_result => response[:CVCResponseCode]
+                     test: test?,
+                     authorization: authorization,
+                     avs_result: { code: avs_code(response, options) },
+                     cvv_result: response[:CVCResponseCode]
         )
       rescue ResponseError => e
         if e.response.code == "401"
@@ -200,8 +200,8 @@ module ActiveMerchant #:nodoc:
         xml.instruct!
         xml.tag! 'WIRECARD_BXML' do
           xml.tag! 'W_REQUEST' do
-          xml.tag! 'W_JOB' do
-              xml.tag! 'JobID', ''
+            xml.tag! 'W_JOB' do
+              xml.tag! 'JobID', '1'
               # UserID for this transaction
               xml.tag! 'BusinessCaseSignature', options[:signature] || options[:login]
               # Create the whole rest of the message
@@ -266,7 +266,7 @@ module ActiveMerchant #:nodoc:
           xml.tag! 'CVC2', creditcard.verification_value
           xml.tag! 'ExpirationYear', creditcard.year
           xml.tag! 'ExpirationMonth', format(creditcard.month, :two_digits)
-          xml.tag! 'CardHolderName', [creditcard.first_name, creditcard.last_name].join(' ')
+          xml.tag! 'CardHolderName', creditcard.name
         end
       end
 
@@ -400,12 +400,12 @@ module ActiveMerchant #:nodoc:
 
       # Amex have different AVS response codes
       AMEX_TRANSLATED_AVS_CODES = {
-        "A" => "B", # CSC and Address Matched
-        "F" => "D", # All Data Matched
-        "N" => "I", # CSC Match
-        "U" => "U", # Data Not Checked
-        "Y" => "D", # All Data Matched
-        "Z" => "P", # CSC and Postcode Matched
+          "A" => "B", # CSC and Address Matched
+          "F" => "D", # All Data Matched
+          "N" => "I", # CSC Match
+          "U" => "U", # Data Not Checked
+          "Y" => "D", # All Data Matched
+          "Z" => "P", # CSC and Postcode Matched
       }
 
       # Amex have different AVS response codes to visa etc
