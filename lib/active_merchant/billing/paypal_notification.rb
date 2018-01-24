@@ -149,14 +149,19 @@ module ActiveMerchant #:nodoc:
         return nil unless params['next_payment_date'].present?
 
         parsed_time_fields = DateTime._strptime(params['next_payment_date'], "%H:%M:%S %b %d, %Y %Z")
-        Time.gm(
+        tz_offset = Time.zone_offset(parsed_time_fields[:zone])
+
+        gm_time = Time.gm(
             parsed_time_fields[:year],
             parsed_time_fields[:mon],
             parsed_time_fields[:mday],
             parsed_time_fields[:hour],
             parsed_time_fields[:min],
             parsed_time_fields[:sec]
-        ) + Time.zone_offset(parsed_time_fields[:zone])
+        )
+
+        gm_time += tz_offset if tz_offset
+        gm_time
       end
 
       def active_profile?
