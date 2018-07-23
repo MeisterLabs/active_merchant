@@ -1,6 +1,6 @@
 require 'time'
 require 'date'
-require "active_merchant/billing/model"
+require 'active_merchant/billing/model'
 
 module ActiveMerchant #:nodoc:
   module Billing #:nodoc:
@@ -64,7 +64,7 @@ module ActiveMerchant #:nodoc:
       attr_reader :number
 
       def number=(value)
-        @number = (empty?(value) ? value : value.to_s.gsub(/[^\d]/, ""))
+        @number = (empty?(value) ? value : value.to_s.gsub(/[^\d]/, ''))
       end
 
       # Returns or sets the expiry month for the card.
@@ -196,12 +196,12 @@ module ActiveMerchant #:nodoc:
       attr_accessor :encrypted_pin_ksn
 
       def type
-        ActiveMerchant.deprecated "CreditCard#type is deprecated and will be removed from a future release of ActiveMerchant. Please use CreditCard#brand instead."
+        ActiveMerchant.deprecated 'CreditCard#type is deprecated and will be removed from a future release of ActiveMerchant. Please use CreditCard#brand instead.'
         brand
       end
 
       def type=(value)
-        ActiveMerchant.deprecated "CreditCard#type is deprecated and will be removed from a future release of ActiveMerchant. Please use CreditCard#brand instead."
+        ActiveMerchant.deprecated 'CreditCard#type is deprecated and will be removed from a future release of ActiveMerchant. Please use CreditCard#brand instead.'
         self.brand = value
       end
 
@@ -297,19 +297,19 @@ module ActiveMerchant #:nodoc:
         errors = []
 
         if self.class.requires_name?
-          errors << [:name,  "cannot be empty"] if name.blank?
+          errors << [:name,  'cannot be empty'] if name.blank?
         end
 
         if(empty?(month) || empty?(year))
-          errors << [:month, "is required"] if empty?(month)
-          errors << [:year,  "is required"] if empty?(year)
+          errors << [:month, 'is required'] if empty?(month)
+          errors << [:year,  'is required'] if empty?(year)
         else
-          errors << [:month, "is not a valid month"] if !valid_month?(month)
+          errors << [:month, 'is not a valid month'] if !valid_month?(month)
 
           if expired?
-            errors << [:year,  "expired"]
+            errors << [:year,  'expired']
           else
-            errors << [:year,  "is not a valid year"]  if !valid_expiry_year?(year)
+            errors << [:year,  'is not a valid year']  if !valid_expiry_year?(year)
           end
         end
 
@@ -320,17 +320,17 @@ module ActiveMerchant #:nodoc:
         errors = []
 
         if !empty?(brand)
-          errors << [:brand, "is invalid"]  if !CreditCard.card_companies.keys.include?(brand)
+          errors << [:brand, 'is invalid']  if !CreditCard.card_companies.keys.include?(brand)
         end
 
         if empty?(number)
-          errors << [:number, "is required"]
+          errors << [:number, 'is required']
         elsif !CreditCard.valid_number?(number)
-          errors << [:number, "is not a valid credit card number"]
+          errors << [:number, 'is not a valid credit card number']
         end
 
         if errors.empty?
-          errors << [:brand, "does not match the card number"] if !CreditCard.matching_brand?(number, brand)
+          errors << [:brand, 'does not match the card number'] if !CreditCard.matching_brand?(number, brand)
         end
 
         errors
@@ -344,7 +344,7 @@ module ActiveMerchant #:nodoc:
             errors << [:verification_value, "should be #{card_verification_value_length(brand)} digits"]
           end
         elsif requires_verification_value?
-          errors << [:verification_value, "is required"]
+          errors << [:verification_value, 'is required']
         end
         errors
       end
@@ -358,11 +358,11 @@ module ActiveMerchant #:nodoc:
 
           if((!valid_start_month || !valid_start_year) && !valid_issue_number?(issue_number))
             if empty?(issue_number)
-              errors << [:issue_number, "cannot be empty"]
-              errors << [:start_month, "is invalid"] if !valid_start_month
-              errors << [:start_year,  "is invalid"] if !valid_start_year
+              errors << [:issue_number, 'cannot be empty']
+              errors << [:start_month, 'is invalid'] if !valid_start_month
+              errors << [:start_year,  'is invalid'] if !valid_start_year
             else
-              errors << [:issue_number, "is invalid"] if !valid_issue_number?(issue_number)
+              errors << [:issue_number, 'is invalid'] if !valid_issue_number?(issue_number)
             end
           end
         end
