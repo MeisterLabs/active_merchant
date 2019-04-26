@@ -24,10 +24,10 @@ module ActiveMerchant #:nodoc:
       self.test_url = 'https://ics2wstesta.ic3.com/commerce/1.x/transactionProcessor'
       self.live_url = 'https://ics2wsa.ic3.com/commerce/1.x/transactionProcessor'
 
-      XSD_VERSION = '1.121'
+      XSD_VERSION = '1.153'
 
-      self.supported_cardtypes = [:visa, :master, :american_express, :discover, :diners_club, :jcb, :switch, :dankort, :maestro]
-      self.supported_countries = %w(US BR CA CN DK FI FR DE JP MX NO SE GB SG LB)
+      self.supported_cardtypes = [:visa, :master, :american_express, :discover, :diners_club, :jcb, :dankort, :maestro]
+      self.supported_countries = %w(US BR CA CN DK FI FR DE IN JP MX NO SE GB SG LB)
 
       self.default_currency = 'USD'
       self.currencies_without_fractions = %w(JPY)
@@ -42,14 +42,13 @@ module ActiveMerchant #:nodoc:
         :discover => '004',
         :diners_club => '005',
         :jcb => '007',
-        :switch => '024',
         :dankort => '034',
         :maestro => '042'
       }
 
       @@response_codes = {
         :r100 => 'Successful transaction',
-        :r101 => 'Request is missing one or more required fields' ,
+        :r101 => 'Request is missing one or more required fields',
         :r102 => 'One or more fields contains invalid data',
         :r150 => 'General failure',
         :r151 => 'The request was received but a server time-out occurred',
@@ -114,7 +113,7 @@ module ActiveMerchant #:nodoc:
 
       def authorize(money, creditcard_or_reference, options = {})
         setup_address_hash(options)
-        commit(build_auth_request(money, creditcard_or_reference, options), :authorize, money, options )
+        commit(build_auth_request(money, creditcard_or_reference, options), :authorize, money, options)
       end
 
       def capture(money, authorization, options = {})
@@ -210,7 +209,7 @@ module ActiveMerchant #:nodoc:
       # Determines if a card can be used for Pinless Debit Card transactions
       def validate_pinless_debit_card(creditcard, options = {})
         requires!(options, :order_id)
-        commit(build_validate_pinless_debit_request(creditcard,options), :validate_pinless_debit_card, nil, options)
+        commit(build_validate_pinless_debit_request(creditcard, options), :validate_pinless_debit_card, nil, options)
       end
 
       def supports_scrubbing?
@@ -261,6 +260,7 @@ module ActiveMerchant #:nodoc:
         add_threeds_services(xml, options)
         add_payment_network_token(xml) if network_tokenization?(creditcard_or_reference)
         add_business_rules_data(xml, creditcard_or_reference, options)
+        add_stored_credential_options(xml, options)
         xml.target!
       end
 
@@ -393,7 +393,7 @@ module ActiveMerchant #:nodoc:
         xml.target!
       end
 
-      def build_validate_pinless_debit_request(creditcard,options)
+      def build_validate_pinless_debit_request(creditcard, options)
         xml = Builder::XmlMarkup.new :indent => 2
         add_creditcard(xml, creditcard)
         add_validate_pinless_debit_service(xml)
@@ -411,7 +411,7 @@ module ActiveMerchant #:nodoc:
         end
       end
 
-      def extract_option prioritized_options, option_name
+      def extract_option(prioritized_options, option_name)
         options_matching_key = prioritized_options.detect do |options|
           options.has_key? option_name
         end
@@ -433,9 +433,9 @@ module ActiveMerchant #:nodoc:
       def add_merchant_data(xml, options)
         xml.tag! 'merchantID', @options[:login]
         xml.tag! 'merchantReferenceCode', options[:order_id] || generate_unique_id
-        xml.tag! 'clientLibrary' ,'Ruby Active Merchant'
+        xml.tag! 'clientLibrary', 'Ruby Active Merchant'
         xml.tag! 'clientLibraryVersion',  VERSION
-        xml.tag! 'clientEnvironment' , RUBY_PLATFORM
+        xml.tag! 'clientEnvironment', RUBY_PLATFORM
       end
 
       def add_purchase_data(xml, money = 0, include_grand_total = false, options={})
@@ -470,7 +470,7 @@ module ActiveMerchant #:nodoc:
           xml.tag! 'accountNumber', creditcard.number
           xml.tag! 'expirationMonth', format(creditcard.month, :two_digits)
           xml.tag! 'expirationYear', format(creditcard.year, :four_digits)
-          xml.tag!('cvNumber', creditcard.verification_value) unless (@options[:ignore_cvv] || creditcard.verification_value.blank? )
+          xml.tag!('cvNumber', creditcard.verification_value) unless @options[:ignore_cvv] || creditcard.verification_value.blank?
           xml.tag! 'cardType', @@credit_card_codes[card_brand(creditcard).to_sym]
         end
       end
@@ -514,7 +514,24 @@ module ActiveMerchant #:nodoc:
         if network_tokenization?(payment_method)
           add_auth_network_tokenization(xml, payment_method, options)
         else
-          xml.tag! 'ccAuthService', {'run' => 'true'}
+          xml.tag! 'ccAuthService', {'run' => 'true'} do
+            check_for_stored_cred_commerce_indicator(xml, options)
+          end
+        end
+      end
+
+      def check_for_stored_cred_commerce_indicator(xml, options)
+        return unless options[:stored_credential]
+        if commerce_indicator(options)
+          xml.tag!('commerceIndicator', commerce_indicator(options))
+        end
+      end
+
+      def commerce_indicator(options)
+        return if options[:stored_credential][:initial_transaction]
+        case options[:stored_credential][:reason_type]
+        when 'installment' then 'install'
+        when 'recurring' then 'recurring'
         end
       end
 
@@ -664,7 +681,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_validate_pinless_debit_service(xml)
-        xml.tag!'pinlessDebitValidateService', {'run' => 'true'}
+        xml.tag! 'pinlessDebitValidateService', {'run' => 'true'}
       end
 
       def add_threeds_services(xml, options)
@@ -678,29 +695,41 @@ module ActiveMerchant #:nodoc:
 
       def lookup_country_code(country_field)
         country_code = Country.find(country_field) rescue nil
-        country_code.code(:alpha2) if country_code
+        country_code&.code(:alpha2)
+      end
+
+      def add_stored_credential_options(xml, options={})
+        return unless options[:stored_credential]
+        if options[:stored_credential][:initial_transaction]
+          xml.tag! 'subsequentAuthFirst', 'true'
+        elsif options[:stored_credential][:reason_type] == 'unscheduled'
+          xml.tag! 'subsequentAuth', 'true'
+          xml.tag! 'subsequentAuthTransactionID', options[:stored_credential][:network_transaction_id]
+        else
+          xml.tag! 'subsequentAuthTransactionID', options[:stored_credential][:network_transaction_id]
+        end
       end
 
       # Where we actually build the full SOAP request using builder
       def build_request(body, options)
         xml = Builder::XmlMarkup.new :indent => 2
-          xml.instruct!
-          xml.tag! 's:Envelope', {'xmlns:s' => 'http://schemas.xmlsoap.org/soap/envelope/'} do
-            xml.tag! 's:Header' do
-              xml.tag! 'wsse:Security', {'s:mustUnderstand' => '1', 'xmlns:wsse' => 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd'} do
-                xml.tag! 'wsse:UsernameToken' do
-                  xml.tag! 'wsse:Username', @options[:login]
-                  xml.tag! 'wsse:Password', @options[:password], 'Type' => 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText'
-                end
-              end
-            end
-            xml.tag! 's:Body', {'xmlns:xsi' => 'http://www.w3.org/2001/XMLSchema-instance', 'xmlns:xsd' => 'http://www.w3.org/2001/XMLSchema'} do
-              xml.tag! 'requestMessage', {'xmlns' => "urn:schemas-cybersource-com:transaction-data-#{XSD_VERSION}"} do
-                add_merchant_data(xml, options)
-                xml << body
+        xml.instruct!
+        xml.tag! 's:Envelope', {'xmlns:s' => 'http://schemas.xmlsoap.org/soap/envelope/'} do
+          xml.tag! 's:Header' do
+            xml.tag! 'wsse:Security', {'s:mustUnderstand' => '1', 'xmlns:wsse' => 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd'} do
+              xml.tag! 'wsse:UsernameToken' do
+                xml.tag! 'wsse:Username', @options[:login]
+                xml.tag! 'wsse:Password', @options[:password], 'Type' => 'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText'
               end
             end
           end
+          xml.tag! 's:Body', {'xmlns:xsi' => 'http://www.w3.org/2001/XMLSchema-instance', 'xmlns:xsd' => 'http://www.w3.org/2001/XMLSchema'} do
+            xml.tag! 'requestMessage', {'xmlns' => "urn:schemas-cybersource-com:transaction-data-#{XSD_VERSION}"} do
+              add_merchant_data(xml, options)
+              xml << body
+            end
+          end
+        end
         xml.target!
       end
 
@@ -756,7 +785,7 @@ module ActiveMerchant #:nodoc:
 
       def parse_element(reply, node)
         if node.has_elements?
-          node.elements.each{|e| parse_element(reply, e) }
+          node.elements.each { |e| parse_element(reply, e) }
         else
           if node.parent.name =~ /item/
             parent = node.parent.name

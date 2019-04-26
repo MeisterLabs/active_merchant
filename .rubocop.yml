@@ -23,3 +23,12 @@ Metrics/ClassLength:
 
 Metrics/ModuleLength:
   Enabled: false
+
+Layout/AlignParameters:
+  EnforcedStyle: with_fixed_indentation
+
+Layout/DotPosition:
+  EnforcedStyle: trailing
+
+Layout/CaseIndentation:
+  EnforcedStyle: end

@@ -19,24 +19,24 @@ class CyberSourceTest < Test::Unit::TestCase
     @check = check()
 
     @options = {
-               :ip => @customer_ip,
-               :order_id => '1000',
-               :line_items => [
-                   {
-                      :declared_value => @amount,
-                      :quantity => 2,
-                      :code => 'default',
-                      :description => 'Giant Walrus',
-                      :sku => 'WA323232323232323'
-                   },
-                   {
-                      :declared_value => @amount,
-                      :quantity => 2,
-                      :description => 'Marble Snowcone',
-                      :sku => 'FAKE1232132113123'
-                   }
-                 ],
-          :currency => 'USD'
+      :ip => @customer_ip,
+      :order_id => '1000',
+      :line_items => [
+        {
+          :declared_value => @amount,
+          :quantity => 2,
+          :code => 'default',
+          :description => 'Giant Walrus',
+          :sku => 'WA323232323232323'
+        },
+        {
+          :declared_value => @amount,
+          :quantity => 2,
+          :description => 'Marble Snowcone',
+          :sku => 'FAKE1232132113123'
+        }
+      ],
+      :currency => 'USD'
     }
 
     @subscription_options = {
@@ -87,7 +87,6 @@ class CyberSourceTest < Test::Unit::TestCase
       assert_match(/field2>CustomValue2.*field3>CustomValue3</m, data)
     end.respond_with(successful_authorization_response)
   end
-
 
   def test_successful_check_purchase
     @gateway.expects(:ssl_post).returns(successful_purchase_response)
@@ -232,7 +231,7 @@ class CyberSourceTest < Test::Unit::TestCase
   end
 
   def test_requires_error_on_tax_calculation_without_line_items
-    assert_raise(ArgumentError){ @gateway.calculate_tax(@credit_card, @options.delete_if{|key, val| key == :line_items})}
+    assert_raise(ArgumentError) { @gateway.calculate_tax(@credit_card, @options.delete_if { |key, val| key == :line_items }) }
   end
 
   def test_default_currency
@@ -424,6 +423,62 @@ class CyberSourceTest < Test::Unit::TestCase
 
     assert response = @gateway.authorize(@amount, credit_card, @options)
     assert_success response
+  end
+
+  def test_successful_auth_first_unscheduled_stored_cred
+    @gateway.stubs(:ssl_post).returns(successful_authorization_response)
+    @options[:stored_credential] = {
+      :initiator => 'cardholder',
+      :reason_type => 'unscheduled',
+      :initial_transaction => true,
+      :network_transaction_id => ''
+    }
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal Response, response.class
+    assert response.success?
+    assert response.test?
+  end
+
+  def test_successful_auth_subsequent_unscheduled_stored_cred
+    @gateway.stubs(:ssl_post).returns(successful_authorization_response)
+    @options[:stored_credential] = {
+      :initiator => 'merchant',
+      :reason_type => 'unscheduled',
+      :initial_transaction => false,
+      :network_transaction_id => '016150703802094'
+    }
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal Response, response.class
+    assert response.success?
+    assert response.test?
+  end
+
+  def test_successful_auth_first_recurring_stored_cred
+    @gateway.stubs(:ssl_post).returns(successful_authorization_response)
+    @options[:stored_credential] = {
+      :initiator => 'cardholder',
+      :reason_type => 'recurring',
+      :initial_transaction => true,
+      :network_transaction_id => ''
+    }
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal Response, response.class
+    assert response.success?
+    assert response.test?
+  end
+
+  def test_successful_auth_subsequent_recurring_stored_cred
+    @gateway.stubs(:ssl_post).returns(successful_authorization_response)
+    @options[:stored_credential] = {
+      :initiator => 'merchant',
+      :reason_type => 'recurring',
+      :initial_transaction => false,
+      :network_transaction_id => '016150703802094'
+    }
+    assert response = @gateway.authorize(@amount, @credit_card, @options)
+    assert_equal Response, response.class
+    assert response.success?
+    assert response.test?
   end
 
   def test_nonfractional_currency_handling

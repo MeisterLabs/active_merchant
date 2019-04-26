@@ -40,13 +40,43 @@ class FirstdataE4V27Test < Test::Unit::TestCase
     assert response.test?
     assert_equal 'Transaction Normal - Approved', response.message
 
-    FirstdataE4V27Gateway::SENSITIVE_FIELDS.each{|f| assert !response.params.has_key?(f.to_s)}
+    FirstdataE4V27Gateway::SENSITIVE_FIELDS.each { |f| assert !response.params.has_key?(f.to_s) }
   end
 
   def test_successful_purchase_with_token
     @gateway.expects(:ssl_post).returns(successful_purchase_response)
     assert response = @gateway.purchase(@amount, '8938737759041111;visa;Longbob;Longsen;9;2014')
     assert_success response
+  end
+
+  def test_successful_purchase_with_wallet
+    response = stub_comms do
+      @gateway.purchase(@amount, @credit_card, @options.merge!({wallet_provider_id: 4}))
+    end.check_request do |endpoint, data, headers|
+      assert_match(/WalletProviderID>4</, data)
+    end.respond_with(successful_purchase_response)
+
+    assert_success response
+  end
+
+  def test_successful_purchase_with_stored_credentials
+    stored_credential = {
+      stored_credential: {
+        initial_transaction: true,
+        reason_type: 'unscheduled',
+        initiator: 'customer'
+      }
+    }
+    response = stub_comms do
+      @gateway.purchase(@amount, @credit_card, @options.merge(stored_credential))
+    end.check_request do |endpoint, data, headers|
+      assert_match(/Indicator>1</, data)
+      assert_match(/Schedule>U</, data)
+      assert_match(/TransactionId>new</, data)
+    end.respond_with(successful_purchase_response_with_stored_credentials)
+
+    assert_success response
+    assert_equal '732602247202501', response.params['stored_credentials_transaction_id']
   end
 
   def test_successful_void
@@ -197,7 +227,7 @@ class FirstdataE4V27Test < Test::Unit::TestCase
         brand: 'american_express',
         transaction_id: '123',
         eci: '05',
-        payment_cryptogram: 'whatever_the_cryptogram_of_at_least_20_characters_is',
+        payment_cryptogram: 'whatever_the_cryptogram_of_at_least_20_characters_is'
       )
 
       @gateway.purchase(@amount, credit_card, @options)
@@ -216,7 +246,7 @@ class FirstdataE4V27Test < Test::Unit::TestCase
         brand: 'discover',
         transaction_id: '123',
         eci: '05',
-        payment_cryptogram: 'whatever_the_cryptogram_is',
+        payment_cryptogram: 'whatever_the_cryptogram_is'
       )
 
       @gateway.purchase(@amount, credit_card, @options)
@@ -236,7 +266,7 @@ class FirstdataE4V27Test < Test::Unit::TestCase
           brand: brand,
           transaction_id: '123',
           eci: '05',
-          payment_cryptogram: 'whatever_the_cryptogram_is',
+          payment_cryptogram: 'whatever_the_cryptogram_is'
         )
 
         @gateway.purchase(@amount, credit_card, @options)
@@ -469,6 +499,106 @@ issuer pursuant to cardholder agreement.
       <Zip>K1C2N6</Zip>
       <CountryCode>CA</CountryCode>
     </Address>
+  </TransactionResult>
+    RESPONSE
+  end
+
+  def successful_purchase_response_with_stored_credentials
+    <<-RESPONSE
+  <?xml version="1.0" encoding="UTF-8"?>
+  <TransactionResult>
+    <ExactID>AD1234-56</ExactID>
+    <Password></Password>
+    <Transaction_Type>00</Transaction_Type>
+    <DollarAmount>47.38</DollarAmount>
+    <SurchargeAmount></SurchargeAmount>
+    <Card_Number>############1111</Card_Number>
+    <Transaction_Tag>106625152</Transaction_Tag>
+    <Track1></Track1>
+    <Track2></Track2>
+    <PAN></PAN>
+    <Authorization_Num>ET1700</Authorization_Num>
+    <Expiry_Date>0913</Expiry_Date>
+    <CardHoldersName>Fred Burfle</CardHoldersName>
+    <CVD_Presence_Ind>0</CVD_Presence_Ind>
+    <ZipCode></ZipCode>
+    <Tax1Amount></Tax1Amount>
+    <Tax1Number></Tax1Number>
+    <Tax2Amount></Tax2Amount>
+    <Tax2Number></Tax2Number>
+    <Secure_AuthRequired></Secure_AuthRequired>
+    <Secure_AuthResult></Secure_AuthResult>
+    <Ecommerce_Flag></Ecommerce_Flag>
+    <XID></XID>
+    <CAVV></CAVV>
+    <CAVV_Algorithm></CAVV_Algorithm>
+    <Reference_No>77</Reference_No>
+    <Customer_Ref></Customer_Ref>
+    <Reference_3></Reference_3>
+    <Language></Language>
+    <Client_IP>1.1.1.10</Client_IP>
+    <Client_Email></Client_Email>
+    <Transaction_Error>false</Transaction_Error>
+    <Transaction_Approved>true</Transaction_Approved>
+    <EXact_Resp_Code>00</EXact_Resp_Code>
+    <EXact_Message>Transaction Normal</EXact_Message>
+    <Bank_Resp_Code>100</Bank_Resp_Code>
+    <Bank_Message>Approved</Bank_Message>
+    <Bank_Resp_Code_2></Bank_Resp_Code_2>
+    <SequenceNo>000040</SequenceNo>
+    <AVS>U</AVS>
+    <CVV2>M</CVV2>
+    <Retrieval_Ref_No>3146117</Retrieval_Ref_No>
+    <CAVV_Response></CAVV_Response>
+    <Currency>USD</Currency>
+    <AmountRequested></AmountRequested>
+    <PartialRedemption>false</PartialRedemption>
+    <MerchantName>Friendly Inc DEMO0983</MerchantName>
+    <MerchantAddress>123 King St</MerchantAddress>
+    <MerchantCity>Toronto</MerchantCity>
+    <MerchantProvince>Ontario</MerchantProvince>
+    <MerchantCountry>Canada</MerchantCountry>
+    <MerchantPostal>L7Z 3K8</MerchantPostal>
+    <MerchantURL></MerchantURL>
+    <TransarmorToken>8938737759041111</TransarmorToken>
+    <CTR>=========== TRANSACTION RECORD ==========
+Friendly Inc DEMO0983
+123 King St
+Toronto, ON L7Z 3K8
+Canada
+
+
+TYPE: Purchase
+
+ACCT: Visa  $ 47.38 USD
+
+CARD NUMBER : ############1111
+DATE/TIME   : 28 Sep 12 07:54:48
+REFERENCE # :  000040 M
+AUTHOR. #   : ET120454
+TRANS. REF. : 77
+
+    Approved - Thank You 100
+
+
+Please retain this copy for your records.
+
+Cardholder will pay above amount to card
+issuer pursuant to cardholder agreement.
+=========================================</CTR>
+    <Address>
+      <Address1>456 My Street</Address1>
+      <Address2>Apt 1</Address2>
+      <City>Ottawa</City>
+      <State>ON</State>
+      <Zip>K1C2N6</Zip>
+      <CountryCode>CA</CountryCode>
+    </Address>
+    <StoredCredentials>
+      <Indicator>1</Indicator>
+      <Schedule>U</Schedule>
+      <TransactionId>732602247202501</TransactionId>
+    </StoredCredentials>
   </TransactionResult>
     RESPONSE
   end

@@ -118,8 +118,9 @@ module ActiveMerchant #:nodoc:
         post = {}
         add_terminal_number(post, options)
         add_operator_id(post, options)
-        add_invoice(post,0, options)
+        add_invoice(post, 0, options)
         add_payment(post, credit_card)
+        add_address(post, credit_card, options)
         add_customer_data(post, options)
 
         commit('verifyAccount', post)
@@ -158,7 +159,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def add_money(post, money)
-        post[:Amount] = money.to_s.rjust(11,'0')
+        post[:Amount] = money.to_s.rjust(11, '0')
       end
 
       def add_operator_id(post, options)
@@ -171,14 +172,14 @@ module ActiveMerchant #:nodoc:
 
       def add_address(post, creditcard, options)
         if address = options[:billing_address] || options[:address]
-          post[:CardHolderAddress] = ("#{address[:address1]} #{address[:address2]}").rjust(20, ' ')
+          post[:CardHolderAddress] = "#{address[:address1]} #{address[:address2]} #{address[:city]} #{address[:state]}".rjust(20, ' ')
           post[:CardHolderPostalCode] = address[:zip].gsub(/\s+/, '').rjust(9, ' ')
         end
       end
 
       def add_invoice(post, money,  options)
         post[:CurrencyCode] = options[:currency] || (currency(money) if money)
-        post[:InvoiceNumber] = options[:order_id].rjust(12,'0')
+        post[:InvoiceNumber] = options[:order_id].rjust(12, '0')
         post[:InputType] = 'I'
         post[:LanguageCode] = 'E'
       end
@@ -188,7 +189,7 @@ module ActiveMerchant #:nodoc:
           post[:Token] = split_authorization(payment)[3].strip
         else
           post[:CardType] = CARD_BRAND[payment.brand] || ' '
-          post[:CardNumber] = payment.number.rjust(40,' ')
+          post[:CardNumber] = payment.number.rjust(40, ' ')
           post[:ExpirationDate] = expdate(payment)
           post[:Cvv2Cvc2Number] = payment.verification_value
         end
@@ -206,7 +207,7 @@ module ActiveMerchant #:nodoc:
         url = (test? ? test_url : live_url) + action
         response = parse(ssl_post(url, post_data(action, parameters)))
 
-        final_response = Response.new(
+        Response.new(
           success_from(response),
           message_from(response),
           response,
@@ -223,7 +224,7 @@ module ActiveMerchant #:nodoc:
           commit_raw(action, parameters)
         else
           MultiResponse.run(true) do |r|
-            r.process { commit_raw(action, parameters)}
+            r.process { commit_raw(action, parameters) }
             r.process {
               split_auth = split_authorization(r.authorization)
               auth =  (action.include?('recur')? split_auth[4] : split_auth[0])
@@ -241,7 +242,7 @@ module ActiveMerchant #:nodoc:
       end
 
       def message_from(response)
-        response['errorDescription'] || (response['terminalDisp'].strip if response['terminalDisp'])
+        response['errorDescription'] || response['terminalDisp']&.strip
       end
 
       def authorization_from(response)
@@ -253,7 +254,7 @@ module ActiveMerchant #:nodoc:
         parameters[:CompanyNumber] = @options[:company_number]
         parameters[:MerchantNumber] = @options[:merchant_number]
         parameters = parameters.collect do |key, value|
-          "#{key}=#{value}" unless (value.nil? || value.empty?)
+          "#{key}=#{value}" unless value.nil? || value.empty?
         end.join('&')
         payload = Base64.strict_encode64(parameters)
         "auth-api-key=#{@options[:api_key]}&payload=#{payload}".strip
